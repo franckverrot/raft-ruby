@@ -57,9 +57,9 @@ class Node
           votes.each do |vote|
             if vote[0] == No && (node = vote[1])
               log "Got a proposal for a node! #{vote[0]} #{vote[1]}"
-              if node.leader?g
+              if node.leader?
                 log " this worked"
-                @following = node
+                becomes_follower(node)
                 break
               else
                 # meh
@@ -152,8 +152,7 @@ class Node
     log "Asked for a confirmation by #{node}"
     if @voted_for.include?(node)
       log "Already voted for #{node}"
-      becomes_follower
-      @following = node
+      becomes_follower(node)
       @voted_for = []
       log "Became a follower of #{node}"
       [Yes]
@@ -195,7 +194,7 @@ class Node
   def follower?;  @state == :follower;  end
   def candidate?; @state == :candidate; end
 
-  def becomes_leader;    @state = :leader;   end
-  def becomes_follower;  @state = :follower; end
-  def becomes_candidate; @state = :candidate;   end
+  def becomes_leader;    @state = :leader;   @following = nil end
+  def becomes_follower(node);  @state = :follower; @following = node; end
+  def becomes_candidate; @state = :candidate; @following = nil  end
 end
