@@ -1,18 +1,18 @@
-require 'drb/drb'
+require 'test_helper'
 
 class RaftIntegrationtest < Minitest::Test
-  def test_all
+  def xtest_all
 
     # The URI for the server to connect to
-    URIs=%w(
+    uris=%w(
   druby://localhost:8787
   druby://localhost:8788
   druby://localhost:8789
     )
 
-    URIs.each_with_index do |uri, index|
+    uris.each_with_index do |uri, index|
       thread = Thread.new {
-        other_nodes = URIs.clone
+        other_nodes = uris.clone
         other_nodes.delete_at(index)
         puts "Creating a new node #{index}, #{other_nodes}"
         DRb.start_service(uri, Node.new(index, other_nodes))
@@ -21,9 +21,9 @@ class RaftIntegrationtest < Minitest::Test
     end
 
     nodes||=[]
-    nodes[0] = DRbObject.new_with_uri(URIs[0])
-    nodes[1] = DRbObject.new_with_uri(URIs[1])
-    nodes[2] = DRbObject.new_with_uri(URIs[2])
+    nodes[0] = DRbObject.new_with_uri(uris[0])
+    nodes[1] = DRbObject.new_with_uri(uris[1])
+    nodes[2] = DRbObject.new_with_uri(uris[2])
     i = 0
 
     old_leader = nil
