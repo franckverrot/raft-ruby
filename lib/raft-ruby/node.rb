@@ -3,7 +3,7 @@ class Node
     @muted = false
     @node_address = node_address
     @term  = 0
-    @state = other_nodes.empty? ? :leader : :candidate
+    other_nodes.empty? ? becomes_leader : becomes_candidate
     @other_nodes = other_nodes
     @voted_for = []
     @following = nil
@@ -19,7 +19,7 @@ class Node
         sleep @election_timeout
         puts "########## #{@node_address} #{@state}"
         begin
-        if @state == :candidate
+        if candidate?
           @election_timeout = Random.new.rand * 2
           sleep @election_timeout
           @term += 1
@@ -29,7 +29,7 @@ class Node
           votes = @nodes.map do |node|
             #   2. receive some answers
             begin
-              vote = node.vote_requested_by(self, @term)
+              node.vote_requested_by(self, @term)
             rescue Exception => e
               log "Some node raised : #{e.message}"
               [No]
@@ -46,7 +46,7 @@ class Node
             end
             #TODO what if no confirmation?
             log "Became the leader"
-            @state = :leader
+            becomes_leader
             break
           else
             log "not becoming the leader, quorum = #{quorum} (required: #{required_quorum_to_be_elected})"
@@ -85,11 +85,11 @@ class Node
       @follower_timeout = Random.new.rand * 2
       loop do
         sleep @follower_timeout
-        if @state == :follower
+        if follower?
           #@follower_timeout = Random.new.rand * 2
           if Time.now >= @last_ping + @follower_timeout
             log "Where's my master? :-( (#{@following})"
-            @state = :candidate
+            becomes_candidate
           else
             log "Chilling, my master's somewhere #{Time.now >= @last_ping + @follower_timeout} (#{Time.now} >= #{@last_ping + 2})"
           end
@@ -103,7 +103,7 @@ class Node
       @leader_timeout = Random.new.rand / 2
       loop do
         sleep @leader_timeout
-        if @state == :leader && !@muted
+        if leader? && !@muted
           @leader_timeout = Random.new.rand  / 2
           all_there = @nodes.map do |node|
             node.still_connected?
@@ -112,7 +112,7 @@ class Node
           if all_there
             # do nothing
           else
-            @state = :candidate
+            becomes_candidate
           end
         end
       end
@@ -151,7 +151,7 @@ class Node
     log "Asked for a confirmation by #{node}"
     if @voted_for.include?(node)
       log "Already voted for #{node}"
-      @state = :follower
+      becomes_follower
       @following = node
       @voted_for = []
       log "Became a follower of #{node}"
@@ -186,13 +186,18 @@ class Node
 
   def unmute
     @muted = false
-    @state = :candidate
+    becomes_leader
   end
 
   def to_s
     "#<Node:#{@node_address}>"
   end
 
-  def leader?; @state == :leader; end
+  def leader?;    @state == :leader;    end
+  def follower?;  @state == :follower;  end
   def candidate?; @state == :candidate; end
+
+  def becomes_leader;    @state = :leader;   end
+  def becomes_follower;  @state = :follower; end
+  def becomes_candidate; @state = :candidate;   end
 end
