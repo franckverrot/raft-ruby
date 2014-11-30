@@ -1,9 +1,9 @@
 class Node
-  def initialize(index, other_nodes)
+  def initialize(node_address, other_nodes = [])
     @muted = false
-    @index = index
+    @node_address = node_address
     @term  = 0
-    @state = :candidate
+    @state = other_nodes.empty? ? :leader : :candidate
     @other_nodes = other_nodes
     @voted_for = []
     @following = nil
@@ -17,14 +17,14 @@ class Node
       @election_timeout = Random.new.rand * 2
       loop do
         sleep @election_timeout
-        puts "########## #{@index} #{@state}"
+        puts "########## #{@node_address} #{@state}"
         begin
         if @state == :candidate
           @election_timeout = Random.new.rand * 2
           sleep @election_timeout
           @term += 1
           # start campaign
-          log "Entering election #{@index}, term #{@term}"
+          log "Entering election #{@node_address}, term #{@term}"
           #   1. tell other nodes we're candidate
           votes = @nodes.map do |node|
             #   2. receive some answers
@@ -56,7 +56,7 @@ class Node
           votes.each do |vote|
             if vote[0] == No && (node = vote[1])
               log "Got a proposal for a node! #{vote[0]} #{vote[1]}"
-              if node.is_leader?
+              if node.leader?g
                 log " this worked"
                 @following = node
                 break
@@ -119,9 +119,6 @@ class Node
     end
   end
 
-  def is_leader?
-    @state == :leader
-  end
   def still_connected?
     @last_ping = Time.now
   end
@@ -170,17 +167,17 @@ class Node
       raise
     else
     """
-[#{@index}]    node[index:#{@index}][state:#{@state}]
-[#{@index}]      election_timeout=#{@election_timeout}
-[#{@index}]      other_nodes=#{@other_nodes.inspect}
-[#{@index}]      following=#{@following}, muted? #{@muted}
-[#{@index}]      last_ping=#{@last_ping}
+[#{@node_address}]    node[node_address:#{@node_address}][state:#{@state}]
+[#{@node_address}]      election_timeout=#{@election_timeout}
+[#{@node_address}]      other_nodes=#{@other_nodes.inspect}
+[#{@node_address}]      following=#{@following}, muted? #{@muted}
+[#{@node_address}]      last_ping=#{@last_ping}
 """
     end
   end
 
   def log(what, important = false)
-    puts "[#{@index}] #{what}"
+    puts "[#{@node_address}] #{what}"
   end
 
   def mute
@@ -193,8 +190,9 @@ class Node
   end
 
   def to_s
-    "#<Node:#{@index}>"
+    "#<Node:#{@node_address}>"
   end
+
+  def leader?; @state == :leader; end
+  def candidate?; @state == :candidate; end
 end
-
-
