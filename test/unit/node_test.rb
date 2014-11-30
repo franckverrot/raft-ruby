@@ -14,49 +14,8 @@ class NodeTest < Minitest::Test
     assert node.candidate?, "A node with peers should be a candidate"
   end
 end
-# The URI for the server to connect to
-
-#i = 0
-#
-#old_leader = nil
-#loop do
-#  puts
-#  print "*" * 20
-#  print "#{i} BEGIN #{Time.now}"
-#  print "*" * 20
-#  puts
-#  i+=1
-#  sleep 1
-#
-#  nodes.each_with_index do |node, index|
-#    begin
 #      puts node.status
 #    rescue Exception => e
 #      puts "[#{index}] I'm probably muted"
-#    end
-#  end
-#
-#  if i == 4
-#    puts "Killing the leader!"
-#    nodes.each_with_index do |node, index|
-#      begin
-#        if node.status.include?("leader")
-#          old_leader = node
-#          node.mute
-#        end
-#      rescue Exception => e
-#        puts "[#{index}] I'm probably muted"
-#      end
-#    end
-#  end
-#
-#  if i == 10
 #    puts "Reviving the old node"
 #    old_leader.unmute
-#  end
-#  print "*" * 20
-#  print " END "
-#  print "*" * 20
-#  puts
-#end
-#DRb.thread.join

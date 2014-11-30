@@ -13,9 +13,9 @@ class RaftIntegrationtest < Minitest::Test
     uris.each_with_index do |uri, index|
       thread = Thread.new {
         other_nodes = uris.clone
-        other_nodes.delete_at(index)
-        puts "Creating a new node #{index}, #{other_nodes}"
-        DRb.start_service(uri, Node.new(index, other_nodes))
+        node_address = other_nodes.delete_at(index)
+        puts "Creating a new node #{node_address}, #{other_nodes}"
+        DRb.start_service(uri, Node.new(node_address, other_nodes))
       }
       thread.join
     end
