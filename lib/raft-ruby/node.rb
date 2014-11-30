@@ -1,4 +1,6 @@
 class Node
+  MutedException = Class.new(Exception)
+
   def initialize(node_address, other_nodes = [])
     @muted = false
     @node_address = node_address
@@ -17,7 +19,6 @@ class Node
       @election_timeout = Random.new.rand * 2
       loop do
         sleep @election_timeout
-        puts "########## #{@node_address} #{@state}"
         begin
         if candidate?
           @election_timeout = Random.new.rand * 2
@@ -88,7 +89,7 @@ class Node
         if follower?
           #@follower_timeout = Random.new.rand * 2
           if Time.now >= @last_ping + @follower_timeout
-            log "Where's my master? :-( (#{@following})"
+            log "Where's my master? :-( (#{@following}) #{Time.now >= @last_ping + @follower_timeout} (#{Time.now} >= #{@last_ping + 2})"
             becomes_candidate
           else
             log "Chilling, my master's somewhere #{Time.now >= @last_ping + @follower_timeout} (#{Time.now} >= #{@last_ping + 2})"
@@ -164,20 +165,17 @@ class Node
 
   def status
     if @muted
-      raise
+      raise MutedException
     else
     """
-[#{@node_address}]    node[node_address:#{@node_address}][state:#{@state}]
-[#{@node_address}]      election_timeout=#{@election_timeout}
-[#{@node_address}]      other_nodes=#{@other_nodes.inspect}
-[#{@node_address}]      following=#{@following}, muted? #{@muted}
-[#{@node_address}]      last_ping=#{@last_ping}
+[#{@node_address}:#{@state}] election_timeout=#{@election_timeout}, muted? #{@muted}
+[#{@node_address}:#{@state}] following=#{@following}, last_ping=#{@last_ping}
 """
     end
   end
 
   def log(what, important = false)
-    puts "[#{@node_address}] #{what}"
+    puts "[#{@node_address}:#{@state}] #{what}"
   end
 
   def mute
