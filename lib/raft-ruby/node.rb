@@ -46,8 +46,8 @@ class Node
               node.confirm_election_for(self)
             end
             #TODO what if no confirmation?
-            log "Became the leader"
             becomes_leader
+            log "Became the leader"
             break
           else
             log "not becoming the leader, quorum = #{quorum} (required: #{required_quorum_to_be_elected})"
