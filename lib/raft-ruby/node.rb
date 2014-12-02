@@ -1,3 +1,4 @@
+require 'hansi'
 class Node
   MutedException = Class.new(Exception)
 
@@ -23,14 +24,14 @@ class Node
         if candidate?
           @election_timeout = Random.new.rand * 2
           sleep @election_timeout
-          @term += 1
           # start campaign
           log "Entering election #{@node_address}, term #{@term}"
           #   1. tell other nodes we're candidate
+          new_term = @term + 1
           votes = @nodes.map do |node|
             #   2. receive some answers
             begin
-              node.vote_requested_by(self, @term)
+              node.vote_requested_by(self, new_term)
             rescue Exception => e
               log "Some node raised : #{e.message}"
               [No]
@@ -46,6 +47,7 @@ class Node
               node.confirm_election_for(self)
             end
             #TODO what if no confirmation?
+            @term += 1
             becomes_leader
             log "Became the leader"
             break
@@ -55,10 +57,11 @@ class Node
 
           # try to contact a reknown leader
           votes.each do |vote|
-            if vote[0] == No && (node = vote[1])
-              log "Got a proposal for a node! #{vote[0]} #{vote[1]}"
+            if vote[0] == No && (node = vote[1])&& (term = vote[2])
+              log "Got a proposal for #{node}, term #{term}"
               if node.leader?
-                log " this worked"
+                log "\tI'm gonna use this node"
+                @term = term
                 becomes_follower(node)
                 break
               else
@@ -92,7 +95,7 @@ class Node
             log "Where's my master? :-( (#{@following}) #{Time.now >= @last_ping + @follower_timeout} (#{Time.now} >= #{@last_ping + 2})"
             becomes_candidate
           else
-            log "Chilling, my master's somewhere #{Time.now >= @last_ping + @follower_timeout} (#{Time.now} >= #{@last_ping + 2})"
+            log "Master is #{@following} #{Time.now >= @last_ping + @follower_timeout} (#{Time.now} >= #{@last_ping + @follower_timeout})"
           end
         else
           # do nothing
@@ -135,14 +138,19 @@ class Node
   Yes = 1
   No  = 0
 
-  def vote_requested_by(node, term)
+  def vote_requested_by(node, proposed_term)
     raise if @muted
-    log " #{node} asked me for a vote with term #{term}, !"
-    if @term >= term
-      log "nah something's wrong with you node #{node}, not voting for you"
-      [No,@following]
+    log " #{node} asked me for a vote with term #{proposed_term}, !"
+    # if term lower or following someone
+    if @following
+      log "Node #{node} requesting vote by already following #{@following}"
+      [No, @following, @term]
+    elsif proposed_term <= @term
+      log "Node #{node} proposing term #{proposed_term}, current is #{@term}). Not voting for it"
+      [No, @following, @term]
     else
       @voted_for << node
+      @term = proposed_term
       [Yes]
     end
   end
@@ -167,16 +175,27 @@ class Node
       raise MutedException
     else
     """
-[#{@node_address}:#{@state}] election_timeout=#{@election_timeout}, muted? #{@muted}
-[#{@node_address}:#{@state}] following=#{@following}, last_ping=#{@last_ping}
+[#{@node_address}:#{@state}:#{@term}] election_timeout=#{@election_timeout}, muted? #{@muted}
+[#{@node_address}:#{@state}:#{@term}] following=#{@following}, last_ping=#{@last_ping}
 """
     end
   end
 
   def log(what, important = false)
-    puts "[#{@node_address}:#{@state}] #{what}"
+    puts Hansi.render(color, "[#{@node_address}:#{@state}:#{@term}] #{what}")
   end
 
+  def color
+    colors = []
+    steps  = (0..255).step(15)
+
+    steps.each do |red|
+      steps.each { |green| colors << Hansi[ red: red, green: green ]}
+      steps.each { |blue|  colors << Hansi[ red: red, green: 255 - blue, blue: blue]}
+      steps.each { |blue|  colors << Hansi[ red: red, blue: 255 - blue ]}
+    end
+    @color_sel ||= colors.shuffle.first
+  end
   def mute
     @muted = true
   end
