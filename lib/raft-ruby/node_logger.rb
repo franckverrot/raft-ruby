@@ -5,14 +5,16 @@ class NodeLogger < Logger
 
   def initialize(device = $stdout)
     super device
+    @color = Hansi[red: 0, green: 0, blue: 0]
   end
 
   def log(what)
-    super Logger::DEBUG, ::Hansi.render(@color, what)
+    super @level, ::Hansi.render(@color, what)
   end
 
   def self.colors
     colors = []
+
     steps  = (0..255).step(15)
 
     steps.each do |red|
@@ -20,6 +22,7 @@ class NodeLogger < Logger
       steps.each { |blue|  colors << Hansi[ red: red, green: 255 - blue, blue: blue]}
       steps.each { |blue|  colors << Hansi[ red: red, blue: 255 - blue ]}
     end
+
     colors
   end
 end

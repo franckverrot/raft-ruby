@@ -10,13 +10,21 @@ class RaftIntegrationtest < Minitest::Test
   druby://localhost:8789
     )
 
+    test_logger = NodeLogger.new.tap do |l|
+      l.level = NodeLogger::INFO
+    end
+
+    colors = [:white, :red, :green, :magenta]
+
     uris.each_with_index do |uri, index|
       thread = Thread.new {
         other_nodes = uris.clone
         node_address = other_nodes.delete_at(index)
-        logger = NodeLogger.new.tap { |l| l.color = NodeLogger.colors.shuffle.first }
+        logger = NodeLogger.new.tap do |l|
+          l.color = colors[1 + index]
+        end
 
-        puts "Creating a new node #{node_address}, #{other_nodes}"
+        test_logger.log "Creating a new node #{node_address}, #{other_nodes}"
         DRb.start_service(uri, Node.new(node_address, other_nodes, logger))
       }
       thread.join
@@ -28,26 +36,28 @@ class RaftIntegrationtest < Minitest::Test
     nodes[2] = DRbObject.new_with_uri(uris[2])
     i = 0
 
+
     old_leader = nil
+
     loop do
-      puts
-      print "*" * 20
-      print "#{i} BEGIN #{Time.now}"
-      print "*" * 20
-      puts
+      test_logger.log ""
+      test_logger.log "*" * 20
+      test_logger.log "#{i} BEGIN #{Time.now}"
+      test_logger.log "*" * 20
+      test_logger.log ""
       i+=1
       sleep 1
 
       nodes.each_with_index do |node, index|
         begin
-          puts node.status
+          test_logger.log node.status
         rescue Exception => e
-          puts "[#{index}] I'm probably muted"
+          test_logger.log "[#{index}] I'm probably muted"
         end
       end
 
       if i == 4
-        puts "Killing the leader!"
+        test_logger.log "Killing the leader!"
         nodes.each_with_index do |node, index|
           begin
             if node.status.include?("leader")
@@ -55,19 +65,19 @@ class RaftIntegrationtest < Minitest::Test
               node.mute
             end
           rescue Exception => e
-            puts "[#{index}] I'm probably muted"
+            test_logger.log "[#{index}] I'm probably muted"
           end
         end
       end
 
       if i == 10
-        puts "Reviving the old node"
+        test_logger.log "Reviving the old node"
         old_leader.unmute
       end
-      print "*" * 20
-      print " END "
-      print "*" * 20
-      puts
+      test_logger.log "*" * 20
+      test_logger.log " END "
+      test_logger.log "*" * 20
+      test_logger.log ""
     end
     DRb.thread.join
   end
