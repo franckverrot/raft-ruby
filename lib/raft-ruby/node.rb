@@ -187,6 +187,7 @@ class Node
 
   def mute
     @muted = true
+    becomes_candidate
   end
 
   def unmute
