@@ -97,7 +97,7 @@ class Node
             log "Where's my master? :-( (#{@following}) #{Time.now >= @last_ping + @follower_timeout} (#{Time.now} >= #{@last_ping + 2})"
             becomes_candidate
           else
-            log "Master is #{@following} #{Time.now >= @last_ping + @follower_timeout} (#{Time.now} >= #{@last_ping + @follower_timeout})"
+            log "Master :#{@following} (#{Time.now}>=#{@last_ping + @follower_timeout})"
           end
         else
           # do nothing
@@ -145,7 +145,7 @@ class Node
     log " #{node} asked me for a vote with term #{proposed_term}, !"
     # if term lower or following someone
     if @following
-      log "Node #{node} requesting vote by already following #{@following}"
+      log "Node #{node} requests vote but already follows #{@following}"
       [No, @following, @term]
     elsif proposed_term <= @term
       log "Node #{node} proposing term #{proposed_term}, current is #{@term}). Not voting for it"
@@ -176,10 +176,8 @@ class Node
     if @muted
       raise MutedException
     else
-    """
-[#{@node_address}:#{@state}:#{@term}] election_timeout=#{@election_timeout}, muted? #{@muted}
-[#{@node_address}:#{@state}:#{@term}] following=#{@following}, last_ping=#{@last_ping}
-"""
+      log "\telection_timeout=#{@election_timeout}, muted? #{@muted}"
+      log "\tfollowing=#{@following}, last_ping=#{@last_ping}"
     end
   end
 
