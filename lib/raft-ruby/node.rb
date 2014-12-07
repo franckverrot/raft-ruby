@@ -1,9 +1,12 @@
-require 'hansi'
+require 'logger'
+
 class Node
   MutedException = Class.new(Exception)
+  CandidateException = Class.new(Exception)
 
-  def initialize(node_address, other_nodes = [])
+  def initialize(node_address, other_nodes = [], logger = Logger.new($stoud))
     @muted = false
+    @logger = logger
     @node_address = node_address
     @term  = 0
     other_nodes.empty? ? becomes_leader : becomes_candidate
@@ -79,8 +82,7 @@ class Node
           #log "Status: #{@state}"
         end
         rescue Exception => e
-          puts "Candidate exception #{e.message}"
-          raise
+          raise CandidateException.new "Candidate exception #{e.message}"
         end
       end
     end
@@ -182,20 +184,9 @@ class Node
   end
 
   def log(what, important = false)
-    puts Hansi.render(color, "[#{@node_address}:#{@state}:#{@term}] #{what}")
+    @logger.log "[#{@node_address}:#{@state}:#{@term}] #{what}"
   end
 
-  def color
-    colors = []
-    steps  = (0..255).step(15)
-
-    steps.each do |red|
-      steps.each { |green| colors << Hansi[ red: red, green: green ]}
-      steps.each { |blue|  colors << Hansi[ red: red, green: 255 - blue, blue: blue]}
-      steps.each { |blue|  colors << Hansi[ red: red, blue: 255 - blue ]}
-    end
-    @color_sel ||= colors.shuffle.first
-  end
   def mute
     @muted = true
   end

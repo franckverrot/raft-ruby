@@ -14,8 +14,10 @@ class RaftIntegrationtest < Minitest::Test
       thread = Thread.new {
         other_nodes = uris.clone
         node_address = other_nodes.delete_at(index)
+        logger = NodeLogger.new.tap { |l| l.color = NodeLogger.colors.shuffle.first }
+
         puts "Creating a new node #{node_address}, #{other_nodes}"
-        DRb.start_service(uri, Node.new(node_address, other_nodes))
+        DRb.start_service(uri, Node.new(node_address, other_nodes, logger))
       }
       thread.join
     end
