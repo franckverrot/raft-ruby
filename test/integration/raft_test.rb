@@ -40,11 +40,7 @@ class RaftIntegrationtest < Minitest::Test
     old_leader = nil
 
     loop do
-      test_logger.log ""
-      test_logger.log "*" * 20
-      test_logger.log "#{i} BEGIN #{Time.now}"
-      test_logger.log "*" * 20
-      test_logger.log ""
+      test_logger.log "#{'*' * 20 } #{i} BEGIN #{Time.now} #{'*' * 20 }"
       i+=1
       sleep 1
 
@@ -60,7 +56,8 @@ class RaftIntegrationtest < Minitest::Test
         test_logger.log "Killing the leader!"
         nodes.each_with_index do |node, index|
           begin
-            if node.status.include?("leader")
+            if node.leader?
+              test_logger.log "Killing node #{node}"
               old_leader = node
               node.mute
             end
@@ -74,10 +71,7 @@ class RaftIntegrationtest < Minitest::Test
         test_logger.log "Reviving the old node"
         old_leader.unmute
       end
-      test_logger.log "*" * 20
-      test_logger.log " END "
-      test_logger.log "*" * 20
-      test_logger.log ""
+      test_logger.log "#{'*' * 20 } END #{'*' * 20 }\n"
     end
     DRb.thread.join
   end
