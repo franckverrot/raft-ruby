@@ -1,3 +1,6 @@
 require 'drb/drb'
 require 'raft-ruby/node'
 require 'raft-ruby/node_logger'
+require 'raft-ruby/behaviors/candidate'
+require 'raft-ruby/behaviors/follower'
+require 'raft-ruby/behaviors/leader'

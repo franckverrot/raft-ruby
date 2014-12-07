@@ -4,7 +4,10 @@ class Node
   MutedException = Class.new(Exception)
   CandidateException = Class.new(Exception)
 
-  def initialize(node_address, other_nodes = [], logger = Logger.new($stoud))
+  attr_reader :following, :nodes, :muted
+  attr_reader :node_address
+  attr_accessor :term, :last_ping
+  def initialize(node_address, other_nodes = [], logger = Logger.new($stout))
     @muted = false
     @logger = logger
     @node_address = node_address
@@ -14,115 +17,24 @@ class Node
     @voted_for = []
     @following = nil
     @last_ping = Time.now
+    DRb.start_service(@node_address, self)
+  end
 
+  def start
     @nodes = @other_nodes.map do |node|
       DRbObject.new_with_uri(node)
     end
 
-    @election = Thread.new do
-      @election_timeout = Random.new.rand * 2
-      loop do
-        sleep @election_timeout
-        begin
-        if candidate?
-          @election_timeout = Random.new.rand * 2
-          sleep @election_timeout
-          # start campaign
-          log "Entering election #{@node_address}, term #{@term}"
-          #   1. tell other nodes we're candidate
-          new_term = @term + 1
-          votes = @nodes.map do |node|
-            #   2. receive some answers
-            begin
-              node.vote_requested_by(self, new_term)
-            rescue Exception => e
-              log "Some node raised : #{e.message}"
-              [No]
-            end
-          end
-          log "Campaign ended : #{votes}"
-          #     b. if quorum acquired, let's become the leader
-          quorum = votes.reduce(0) { |t,i| t+= i[0] || 0 }
-          if quorum >= required_quorum_to_be_elected
-            log "My quorum is #{quorum}, i'll become the leader"
-            # becoming the leader
-            acknowledgements = @nodes.map do |node|
-              node.confirm_election_for(self)
-            end
-            #TODO what if no confirmation?
-            @term += 1
-            becomes_leader
-            log "Became the leader"
-            break
-          else
-            log "not becoming the leader, quorum = #{quorum} (required: #{required_quorum_to_be_elected})"
-          end
-
-          # try to contact a reknown leader
-          votes.each do |vote|
-            if vote[0] == No && (node = vote[1])&& (term = vote[2])
-              log "Got a proposal for #{node}, term #{term}"
-              if node.leader?
-                log "\tI'm gonna use this node"
-                @term = term
-                becomes_follower(node)
-                break
-              else
-                # meh
-              end
-            end
-          end
-
-          if @following
-            log "I'm finally following #{@following}"
-          else
-            log "Couldn't find any interesting node"
-          end
-        else
-          #log "Status: #{@state}"
-        end
-        rescue Exception => e
-          raise CandidateException.new "Candidate exception #{e.message}"
-        end
-      end
+    rand = ->(max) { Random.new.rand(max) }
+    @leader    = Thread.new { Behaviors::Leader[self,   rand(1.00)] }
+    @follower  = Thread.new { Behaviors::Follower[self, rand(0.50)] }
+    @candidate = Thread.new { Behaviors::Candidate[self,rand(0.25)] }
+    Thread.new do
+      sleep 1
+      log status
     end
-
-    @follower_heartbeat = Thread.new do
-      @follower_timeout = Random.new.rand * 2
-      loop do
-        sleep @follower_timeout
-        if follower?
-          #@follower_timeout = Random.new.rand * 2
-          if Time.now >= @last_ping + @follower_timeout
-            log "Where's my master? :-( (#{@following}) #{Time.now >= @last_ping + @follower_timeout} (#{Time.now} >= #{@last_ping + 2})"
-            becomes_candidate
-          else
-            log "Master :#{@following} (#{Time.now}>=#{@last_ping + @follower_timeout})"
-          end
-        else
-          # do nothing
-        end
-      end
-    end
-
-    @leader_heartbeat = Thread.new do
-      @leader_timeout = Random.new.rand / 2
-      loop do
-        sleep @leader_timeout
-        if leader? && !@muted
-          @leader_timeout = Random.new.rand  / 2
-          all_there = @nodes.map do |node|
-            node.still_connected?
-          end.all? { |e| e }
-
-          if all_there
-            # do nothing
-          else
-            becomes_candidate
-          end
-        end
-      end
-    end
+    self#.join
+    #@candidate.join; @follower.join; @leader.join
   end
 
   def still_connected?
@@ -168,7 +80,7 @@ class Node
       [Yes]
     else
       log "HEY NODE #{node}, you're a cheater!"
-      [No,@following]
+      [No,@following, @term]
     end
   end
 
@@ -176,8 +88,7 @@ class Node
     if @muted
       raise MutedException
     else
-      log "\telection_timeout=#{@election_timeout}, muted? #{@muted}"
-      log "\tfollowing=#{@following}, last_ping=#{@last_ping}"
+      log "\tmuted?=#{@muted}, following=#{@following}, last_ping=#{@last_ping}"
     end
   end
 
@@ -187,12 +98,11 @@ class Node
 
   def mute
     @muted = true
-    becomes_candidate
   end
 
   def unmute
     @muted = false
-    becomes_leader
+    becomes_candidate
   end
 
   def to_s

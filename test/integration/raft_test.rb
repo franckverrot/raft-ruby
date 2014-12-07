@@ -16,32 +16,26 @@ class RaftIntegrationtest < Minitest::Test
 
     colors = [:white, :red, :green, :magenta]
 
-    uris.each_with_index do |uri, index|
-      thread = Thread.new {
-        other_nodes = uris.clone
-        node_address = other_nodes.delete_at(index)
-        logger = NodeLogger.new.tap do |l|
-          l.color = colors[1 + index]
-        end
+    nodes = uris.map.with_index do |uri, index|
+      other_nodes = uris.clone
+      node_address = other_nodes.delete_at(index)
+      logger = NodeLogger.new.tap do |l|
+        l.color = colors[1 + index]
+      end
 
-        test_logger.log "Creating a new node #{node_address}, #{other_nodes}"
-        DRb.start_service(uri, Node.new(node_address, other_nodes, logger))
-      }
-      thread.join
+      test_logger.log "Creating a new node #{node_address}, #{other_nodes}"
+      Node.new(node_address, other_nodes, logger)
     end
 
-    nodes||=[]
-    nodes[0] = DRbObject.new_with_uri(uris[0])
-    nodes[1] = DRbObject.new_with_uri(uris[1])
-    nodes[2] = DRbObject.new_with_uri(uris[2])
-    i = 0
-
+    nodes.each { |node| node.start }
 
     old_leader = nil
 
+    i = -1
     loop do
-      test_logger.log "#{'*' * 20 } #{i} BEGIN #{Time.now} #{'*' * 20 }"
       i+=1
+
+      test_logger.log "#{'*' * 20 } #{i} BEGIN #{Time.now} #{'*' * 20 }"
       sleep 1
 
       nodes.each_with_index do |node, index|
@@ -67,12 +61,11 @@ class RaftIntegrationtest < Minitest::Test
         end
       end
 
-      if i == 10
+      if i == 15
         test_logger.log "Reviving the old node"
         old_leader.unmute
       end
       test_logger.log "#{'*' * 20 } END #{'*' * 20 }\n"
     end
-    DRb.thread.join
   end
 end
